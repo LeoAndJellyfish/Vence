@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Vence.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Vence.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
