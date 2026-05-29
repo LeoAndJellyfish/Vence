@@ -57,6 +57,10 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Vence.EditorHost\Vence.EditorHost.csproj" />
+    <ProjectReference Include="..\Vence.Markdown\Vence.Markdown.csproj" />
+  </ItemGroup>
 
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
