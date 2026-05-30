@@ -26,7 +26,7 @@ public sealed record EditorMessage(int Version, string Type, string RequestId, J
     {
         try
         {
-            message = JsonSerializer.Deserialize<EditorMessage>(json, SerializerOptions);
+            message = JsonSerializer.Deserialize(json, EditorJsonSerializerContext.Default.EditorMessage);
             return message is not null &&
                 message.Version == CurrentVersion &&
                 !string.IsNullOrWhiteSpace(message.Type) &&
@@ -41,6 +41,6 @@ public sealed record EditorMessage(int Version, string Type, string RequestId, J
 
     public string ToJson()
     {
-        return JsonSerializer.Serialize(this, SerializerOptions);
+        return JsonSerializer.Serialize(this, EditorJsonSerializerContext.Default.EditorMessage);
     }
 }

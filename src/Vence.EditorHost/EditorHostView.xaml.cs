@@ -13,6 +13,7 @@ public sealed partial class EditorHostView : UserControl
             new PropertyMetadata(string.Empty));
 
     private readonly EditorBridge _bridge = new();
+    private bool _isReady;
 
     public EditorHostView()
     {
@@ -28,12 +29,59 @@ public sealed partial class EditorHostView : UserControl
 
     public event EventHandler<EditorMessage>? EditorMessageReceived;
 
+    public void SetMarkdown(string markdown)
+    {
+        InitialMarkdown = markdown;
+
+        if (!_isReady)
+        {
+            return;
+        }
+
+        _bridge.Send(EditorMessage.Create("document.setMarkdown", new { markdown }));
+    }
+
+    public void SetReaderMode(bool isReaderMode)
+    {
+        if (!_isReady)
+        {
+            return;
+        }
+
+        _bridge.Send(EditorMessage.Create("document.setReaderMode", new { enabled = isReaderMode }));
+    }
+
+    public void ApplyMarkdownCommand(string command)
+    {
+        if (!_isReady)
+        {
+            return;
+        }
+
+        _bridge.Send(EditorMessage.Create("editor.applyMarkdownCommand", new { command }));
+    }
+
+    public void ScrollToHeading(int headingIndex)
+    {
+        if (!_isReady)
+        {
+            return;
+        }
+
+        _bridge.Send(EditorMessage.Create("document.scrollToHeading", new { headingIndex }));
+    }
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         Loaded -= OnLoaded;
 
         await _bridge.AttachAsync(EditorWebView);
         _bridge.MessageReceived += (_, message) => EditorMessageReceived?.Invoke(this, message);
+        EditorWebView.NavigationCompleted += (_, _) =>
+        {
+            _isReady = true;
+            SetMarkdown(InitialMarkdown);
+        };
 
         EditorWebView.NavigateToString(EditorHostHtml.Create(InitialMarkdown));
     }

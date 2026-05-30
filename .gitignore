@@ -2,3 +2,4 @@
 .dotnet/
 bin/
 obj/
+artifacts/

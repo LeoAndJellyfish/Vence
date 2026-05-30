@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Vence.Storage.Entities;
+using Vence.Storage.Snapshots;
 
 namespace Vence.Storage;
 
@@ -9,9 +10,11 @@ public sealed class FileSystemWorkspaceStore : IWorkspaceStore
 {
     private const string MetadataDirectoryName = ".vence";
     private const string DatabaseFileName = "workspace.db";
+    private static readonly string[] MarkdownSearchPatterns = ["*.md", "*.markdown"];
 
     private readonly string _rootPath;
     private readonly DbContextOptions<VenceDbContext> _dbContextOptions;
+    private readonly ISnapshotStore _snapshotStore;
 
     public FileSystemWorkspaceStore(string rootPath)
     {
@@ -30,6 +33,40 @@ public sealed class FileSystemWorkspaceStore : IWorkspaceStore
         _dbContextOptions = new DbContextOptionsBuilder<VenceDbContext>()
             .UseSqlite($"Data Source={dbPath};Pooling=False")
             .Options;
+
+        _snapshotStore = new SnapshotStore(_rootPath);
+    }
+
+    public Task<IReadOnlyList<WorkspaceDocumentInfo>> ListDocumentsAsync(CancellationToken cancellationToken = default)
+    {
+        var documents = new List<WorkspaceDocumentInfo>();
+
+        foreach (var searchPattern in MarkdownSearchPatterns)
+        {
+            foreach (var filePath in Directory.EnumerateFiles(_rootPath, searchPattern, SearchOption.AllDirectories))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var relativePath = Path.GetRelativePath(_rootPath, filePath);
+                if (IsMetadataPath(relativePath))
+                {
+                    continue;
+                }
+
+                var normalizedPath = NormalizeRelativePath(relativePath);
+                documents.Add(new WorkspaceDocumentInfo(
+                    normalizedPath,
+                    GetTitle(normalizedPath),
+                    new DateTimeOffset(File.GetLastWriteTimeUtc(filePath), TimeSpan.Zero)));
+            }
+        }
+
+        IReadOnlyList<WorkspaceDocumentInfo> result = documents
+            .OrderByDescending(document => document.UpdatedAt)
+            .ThenBy(document => document.Path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return Task.FromResult(result);
     }
 
     public async Task SaveAsync(StoredDocument document, CancellationToken cancellationToken = default)
@@ -83,6 +120,9 @@ public sealed class FileSystemWorkspaceStore : IWorkspaceStore
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await _snapshotStore.CreateSnapshotAsync(
+            new StoredDocument(document.Id, relativePath, document.Content),
+            cancellationToken);
     }
 
     public async Task<StoredDocument?> OpenAsync(string path, CancellationToken cancellationToken = default)
@@ -159,6 +199,13 @@ public sealed class FileSystemWorkspaceStore : IWorkspaceStore
         }
 
         return path.Replace('\\', '/').TrimStart('/');
+    }
+
+    private static bool IsMetadataPath(string relativePath)
+    {
+        var normalizedPath = relativePath.Replace('\\', '/').TrimStart('/');
+        return normalizedPath.Equals(MetadataDirectoryName, StringComparison.OrdinalIgnoreCase) ||
+            normalizedPath.StartsWith($"{MetadataDirectoryName}/", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string GetTitle(string relativePath)

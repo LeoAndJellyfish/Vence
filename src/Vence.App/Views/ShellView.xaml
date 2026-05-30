@@ -17,12 +17,18 @@
         <SolidColorBrush x:Key="VenceLineBrush" Color="#FFE3DACB" />
         <SolidColorBrush x:Key="VenceAccentBrush" Color="#FF355B4B" />
         <SolidColorBrush x:Key="VenceSelectedBrush" Color="#FFE8EEF0" />
-        <x:Double x:Key="VenceCornerRadius">8</x:Double>
+        <Style x:Key="AiBubbleButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="19" />
+            <Setter Property="Background" Value="{StaticResource VenceSelectedBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource VenceLineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
     </UserControl.Resources>
 
-    <Grid
-        Background="{StaticResource VenceSurfaceBrush}"
-        RowSpacing="0">
+    <Grid Background="{StaticResource VenceSurfaceBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -70,7 +76,7 @@
                 <TextBlock
                     FontSize="15"
                     Foreground="{StaticResource VenceInkBrush}"
-                    Text="{x:Bind ViewModel.Title}" />
+                    Text="{x:Bind ViewModel.Title, Mode=OneWay}" />
                 <FontIcon
                     FontFamily="Segoe Fluent Icons"
                     FontSize="14"
@@ -79,7 +85,7 @@
                 <TextBlock
                     FontSize="13"
                     Foreground="{StaticResource VenceMutedBrush}"
-                    Text="{x:Bind ViewModel.Subtitle}" />
+                    Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}" />
             </StackPanel>
 
             <CommandBar
@@ -91,42 +97,46 @@
                     x:Name="NewDocumentButton"
                     AutomationProperties.AutomationId="NewDocumentButton"
                     AutomationProperties.Name="新建文档"
+                    Click="OnNewDocumentClick"
                     Icon="Page2"
+                    IsEnabled="{x:Bind ViewModel.HasWorkspace, Mode=OneWay}"
                     Label="新建" />
                 <AppBarButton
                     x:Name="OpenDocumentButton"
                     AutomationProperties.AutomationId="OpenDocumentButton"
-                    AutomationProperties.Name="打开文档"
+                    AutomationProperties.Name="打开工作区"
+                    Click="OnOpenWorkspaceClick"
                     Icon="OpenFile"
                     Label="打开" />
                 <AppBarButton
                     x:Name="SaveDocumentButton"
                     AutomationProperties.AutomationId="SaveDocumentButton"
                     AutomationProperties.Name="保存文档"
+                    Click="OnSaveDocumentClick"
                     Icon="Save"
+                    IsEnabled="{x:Bind ViewModel.CanSave, Mode=OneWay}"
                     Label="保存" />
             </CommandBar>
         </Grid>
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="248" />
+                <ColumnDefinition Width="264" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="328" />
+                <ColumnDefinition Width="288" />
             </Grid.ColumnDefinitions>
 
             <Grid
                 Grid.Column="0"
-                Padding="18,16"
+                Padding="16"
                 Background="{StaticResource VencePanelBrush}"
                 BorderBrush="{StaticResource VenceLineBrush}"
                 BorderThickness="0,0,1,0"
-                RowSpacing="14">
+                RowSpacing="12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
-                    <RowDefinition Height="160" />
                 </Grid.RowDefinitions>
 
                 <AutoSuggestBox
@@ -138,24 +148,26 @@
 
                 <TextBlock
                     Grid.Row="1"
-                    Margin="0,8,0,0"
+                    Margin="2,6,0,0"
                     FontSize="13"
                     FontWeight="SemiBold"
                     Foreground="{StaticResource VenceInkBrush}"
-                    Text="我的文档" />
+                    Text="工作区" />
 
                 <ListView
-                    x:Name="FolderList"
+                    x:Name="DocumentTreeList"
                     Grid.Row="2"
-                    AutomationProperties.AutomationId="FolderList"
-                    AutomationProperties.Name="文档文件夹"
+                    AutomationProperties.AutomationId="DocumentTreeList"
+                    AutomationProperties.Name="文档文件树"
                     IsItemClickEnabled="True"
-                    ItemsSource="{x:Bind ViewModel.Folders, Mode=OneWay}"
+                    ItemClick="OnDocumentItemClick"
+                    ItemsSource="{x:Bind ViewModel.Documents, Mode=OneWay}"
                     SelectionMode="Single">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="models:DocumentListItem">
                             <Grid
-                                MinHeight="34"
+                                MinHeight="32"
+                                Padding="{x:Bind TreeMargin}"
                                 ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
@@ -163,181 +175,164 @@
                                 </Grid.ColumnDefinitions>
                                 <FontIcon
                                     FontFamily="Segoe Fluent Icons"
-                                    FontSize="14"
+                                    FontSize="13"
                                     Foreground="{StaticResource VenceMutedBrush}"
-                                    Glyph="&#xE8B7;" />
+                                    Glyph="{x:Bind TreeGlyph}" />
                                 <TextBlock
                                     Grid.Column="1"
+                                    MaxLines="1"
                                     Foreground="{StaticResource VenceInkBrush}"
-                                    Text="{x:Bind Title}" />
+                                    Text="{x:Bind Title}"
+                                    TextTrimming="CharacterEllipsis" />
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
-
-                <Border
-                    Grid.Row="3"
-                    BorderBrush="{StaticResource VenceLineBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                    <Grid Padding="12">
-                        <TextBlock
-                            FontFamily="Georgia"
-                            FontSize="15"
-                            Foreground="{StaticResource VenceMutedBrush}"
-                            Text="最近" />
-                        <ListView
-                            Margin="0,28,0,0"
-                            AutomationProperties.AutomationId="RecentDocumentList"
-                            AutomationProperties.Name="最近文档"
-                            ItemsSource="{x:Bind ViewModel.Documents, Mode=OneWay}"
-                            SelectionMode="Single">
-                            <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="models:DocumentListItem">
-                                    <TextBlock
-                                        MaxLines="1"
-                                        Text="{x:Bind Title}"
-                                        TextTrimming="CharacterEllipsis" />
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-                    </Grid>
-                </Border>
             </Grid>
 
             <Grid
                 Grid.Column="1"
-                Padding="34,24,34,20"
+                Padding="28,20"
                 RowSpacing="12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
-                    <RowDefinition Height="186" />
                 </Grid.RowDefinitions>
 
-                <CommandBar
-                    Grid.Row="0"
-                    Background="Transparent"
-                    DefaultLabelPosition="Collapsed"
-                    HorizontalAlignment="Stretch">
-                    <AppBarButton
-                        AutomationProperties.Name="加粗"
-                        Icon="Bold"
-                        Label="加粗" />
-                    <AppBarButton
-                        AutomationProperties.Name="斜体"
-                        Icon="Italic"
-                        Label="斜体" />
-                    <AppBarButton
-                        AutomationProperties.Name="插入链接"
-                        Icon="Link"
-                        Label="链接" />
-                    <AppBarButton
-                        AutomationProperties.Name="插入图片"
-                        Icon="Pictures"
-                        Label="图片" />
-                </CommandBar>
-
-                <Border
-                    Grid.Row="1"
-                    Background="#FFFFFBF6"
-                    BorderBrush="{StaticResource VenceLineBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                    <editorHost:EditorHostView
-                        x:Name="MarkdownEditorHost"
-                        AutomationProperties.AutomationId="MarkdownEditorHost"
-                        AutomationProperties.Name="Markdown 编辑器宿主"
-                        InitialMarkdown="{x:Bind ViewModel.InitialMarkdown}" />
-                </Border>
-
-                <Grid
-                    Grid.Row="2"
-                    ColumnSpacing="12">
+                <Grid Grid.Row="0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="260" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
+                    <CommandBar
+                        Background="Transparent"
+                        DefaultLabelPosition="Collapsed"
+                        HorizontalAlignment="Left"
+                        Visibility="{x:Bind ViewModel.EditorModeVisibility, Mode=OneWay}">
+                        <AppBarButton
+                            AutomationProperties.Name="加粗"
+                            Click="OnEditorCommandClick"
+                            Icon="Bold"
+                            Label="加粗"
+                            Tag="bold" />
+                        <AppBarButton
+                            AutomationProperties.Name="斜体"
+                            Click="OnEditorCommandClick"
+                            Icon="Italic"
+                            Label="斜体"
+                            Tag="italic" />
+                        <AppBarButton
+                            AutomationProperties.Name="插入链接"
+                            Click="OnEditorCommandClick"
+                            Icon="Link"
+                            Label="链接"
+                            Tag="link" />
+                        <AppBarButton
+                            AutomationProperties.Name="插入图片"
+                            Click="OnEditorCommandClick"
+                            Icon="Pictures"
+                            Label="图片"
+                            Tag="image" />
+                    </CommandBar>
+
+                    <ToggleButton
+                        x:Name="ReaderModeButton"
+                        Grid.Column="1"
+                        MinWidth="112"
+                        Padding="12,6"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        AutomationProperties.AutomationId="ReaderModeButton"
+                        AutomationProperties.Name="读者模式"
+                        Click="OnReaderModeClick"
+                        CornerRadius="16"
+                        IsChecked="{x:Bind ViewModel.IsReaderMode, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon
+                                FontFamily="Segoe Fluent Icons"
+                                FontSize="13"
+                                Glyph="&#xE82D;" />
+                            <TextBlock Text="{x:Bind ViewModel.ReaderModeLabel, Mode=OneWay}" />
+                        </StackPanel>
+                    </ToggleButton>
+                </Grid>
+
+                <Grid Grid.Row="1">
                     <Border
-                        Padding="12"
+                        Margin="48,0"
+                        Background="#FFFFFBF6"
                         BorderBrush="{StaticResource VenceLineBrush}"
                         BorderThickness="1"
                         CornerRadius="8">
-                        <Grid RowSpacing="9">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <TextBlock
-                                FontSize="13"
-                                FontWeight="SemiBold"
-                                Text="大纲" />
-                            <ListView
-                                Grid.Row="1"
-                                AutomationProperties.AutomationId="OutlineList"
-                                AutomationProperties.Name="文档大纲"
-                                ItemsSource="{x:Bind ViewModel.OutlineItems, Mode=OneWay}"
-                                SelectionMode="Single">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="models:OutlineListItem">
-                                        <Grid MinHeight="28" ColumnSpacing="8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="34" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock
-                                                FontSize="12"
-                                                Foreground="{StaticResource VenceMutedBrush}"
-                                                Text="{x:Bind HeadingLabel}" />
-                                            <TextBlock
-                                                Grid.Column="1"
-                                                MaxLines="1"
-                                                Foreground="{StaticResource VenceInkBrush}"
-                                                Text="{x:Bind Title}"
-                                                TextTrimming="CharacterEllipsis" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                        </Grid>
+                        <editorHost:EditorHostView
+                            x:Name="MarkdownEditorHost"
+                            AutomationProperties.AutomationId="MarkdownEditorHost"
+                            AutomationProperties.Name="Markdown 编辑器宿主"
+                            InitialMarkdown="{x:Bind ViewModel.CurrentMarkdown, Mode=OneWay}" />
                     </Border>
 
-                    <Border
-                        Grid.Column="1"
-                        Padding="12"
-                        BorderBrush="{StaticResource VenceLineBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <StackPanel Orientation="Horizontal" Spacing="16">
-                                <TextBlock
-                                    FontSize="13"
-                                    Foreground="{StaticResource VenceAccentBrush}"
-                                    Text="Markdown 预览" />
-                                <TextBlock
-                                    FontSize="13"
-                                    Foreground="{StaticResource VenceMutedBrush}"
-                                    Text="源码" />
-                                <TextBlock
-                                    FontSize="13"
-                                    Foreground="{StaticResource VenceMutedBrush}"
-                                    Text="Mermaid 预览" />
-                            </StackPanel>
-                            <TextBox
-                                Grid.Row="1"
-                                Margin="0,12,0,0"
-                                AcceptsReturn="True"
-                                AutomationProperties.Name="预览源码"
-                                BorderThickness="0"
-                                IsReadOnly="True"
-                                Text="graph LR&#x0a;A[Vence] --> B[历史]&#x0a;A --> C[艺术]&#x0a;A --> D[生活]" />
-                        </Grid>
-                    </Border>
+                    <StackPanel
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Spacing="10"
+                        Visibility="{x:Bind ViewModel.ReaderModeVisibility, Mode=OneWay}">
+                        <Button
+                            AutomationProperties.Name="智能语法检查"
+                            Click="OnReaderAssistantClick"
+                            Style="{StaticResource AiBubbleButtonStyle}"
+                            Tag="grammar"
+                            ToolTipService.ToolTip="智能语法检查">
+                            <FontIcon
+                                FontFamily="Segoe Fluent Icons"
+                                FontSize="15"
+                                Foreground="{StaticResource VenceAccentBrush}"
+                                Glyph="&#xE73E;" />
+                        </Button>
+                        <Button
+                            AutomationProperties.Name="智能润色"
+                            Click="OnReaderAssistantClick"
+                            Style="{StaticResource AiBubbleButtonStyle}"
+                            Tag="polish"
+                            ToolTipService.ToolTip="智能润色">
+                            <FontIcon
+                                FontFamily="Segoe Fluent Icons"
+                                FontSize="15"
+                                Foreground="{StaticResource VenceAccentBrush}"
+                                Glyph="&#xE790;" />
+                        </Button>
+                    </StackPanel>
+
+                    <StackPanel
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Spacing="10"
+                        Visibility="{x:Bind ViewModel.ReaderModeVisibility, Mode=OneWay}">
+                        <Button
+                            AutomationProperties.Name="智能补全"
+                            Click="OnReaderAssistantClick"
+                            Style="{StaticResource AiBubbleButtonStyle}"
+                            Tag="completion"
+                            ToolTipService.ToolTip="智能补全">
+                            <FontIcon
+                                FontFamily="Segoe Fluent Icons"
+                                FontSize="15"
+                                Foreground="{StaticResource VenceAccentBrush}"
+                                Glyph="&#xE70F;" />
+                        </Button>
+                        <Button
+                            AutomationProperties.Name="智能格式调整"
+                            Click="OnReaderAssistantClick"
+                            Style="{StaticResource AiBubbleButtonStyle}"
+                            Tag="structure"
+                            ToolTipService.ToolTip="智能格式调整">
+                            <FontIcon
+                                FontFamily="Segoe Fluent Icons"
+                                FontSize="15"
+                                Foreground="{StaticResource VenceAccentBrush}"
+                                Glyph="&#xE8A5;" />
+                        </Button>
+                    </StackPanel>
                 </Grid>
             </Grid>
 
@@ -347,113 +342,50 @@
                 Background="{StaticResource VencePanelBrush}"
                 BorderBrush="{StaticResource VenceLineBrush}"
                 BorderThickness="1,0,0,0"
-                RowSpacing="16">
+                RowSpacing="12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
-                    <RowDefinition Height="220" />
                 </Grid.RowDefinitions>
 
                 <TextBlock
                     Grid.Row="0"
-                    FontSize="18"
+                    FontSize="15"
                     FontWeight="SemiBold"
                     Foreground="{StaticResource VenceInkBrush}"
-                    Text="文思，即泉涌" />
+                    Text="大纲" />
 
                 <ListView
-                    x:Name="AssistantList"
+                    x:Name="OutlineList"
                     Grid.Row="1"
-                    AutomationProperties.AutomationId="AssistantList"
-                    AutomationProperties.Name="文思智能建议"
-                    ItemsSource="{x:Bind ViewModel.AssistantItems, Mode=OneWay}"
-                    SelectionMode="None">
+                    AutomationProperties.AutomationId="OutlineList"
+                    AutomationProperties.Name="文档大纲"
+                    IsItemClickEnabled="True"
+                    ItemClick="OnOutlineItemClick"
+                    ItemsSource="{x:Bind ViewModel.OutlineItems, Mode=OneWay}"
+                    SelectionMode="Single">
                     <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="models:AssistantPanelItem">
-                            <Grid
-                                MinHeight="64"
-                                Padding="0,7"
-                                ColumnSpacing="12">
+                        <DataTemplate x:DataType="models:OutlineListItem">
+                            <Grid MinHeight="30" ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="34" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Border
-                                    Width="30"
-                                    Height="30"
-                                    Background="{StaticResource VenceSelectedBrush}"
-                                    CornerRadius="15">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{x:Bind Icon}" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Spacing="3">
-                                    <TextBlock
-                                        FontWeight="SemiBold"
-                                        Text="{x:Bind Title}" />
-                                    <TextBlock
-                                        Foreground="{StaticResource VenceMutedBrush}"
-                                        Text="{x:Bind Summary}" />
-                                </StackPanel>
-                                <FontIcon
-                                    Grid.Column="2"
-                                    VerticalAlignment="Center"
-                                    FontFamily="Segoe Fluent Icons"
+                                <TextBlock
                                     FontSize="12"
                                     Foreground="{StaticResource VenceMutedBrush}"
-                                    Glyph="&#xE72A;" />
+                                    Text="{x:Bind HeadingLabel}" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    MaxLines="1"
+                                    Foreground="{StaticResource VenceInkBrush}"
+                                    Text="{x:Bind Title}"
+                                    TextTrimming="CharacterEllipsis" />
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
 
-                <Border
-                    Grid.Row="2"
-                    Padding="12"
-                    BorderBrush="{StaticResource VenceLineBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                    <Grid RowSpacing="10">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <TextBlock
-                            FontSize="14"
-                            FontWeight="SemiBold"
-                            Text="读文启思" />
-                        <ListView
-                            Grid.Row="1"
-                            AutomationProperties.AutomationId="ReaderModeList"
-                            AutomationProperties.Name="读者模式批注"
-                            ItemsSource="{x:Bind ViewModel.ReaderNotes, Mode=OneWay}"
-                            SelectionMode="None">
-                            <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="models:AssistantPanelItem">
-                                    <StackPanel Margin="0,4" Spacing="2">
-                                        <TextBlock
-                                            MaxLines="1"
-                                            Text="{x:Bind Title}"
-                                            TextTrimming="CharacterEllipsis" />
-                                        <TextBlock
-                                            FontSize="12"
-                                            Foreground="{StaticResource VenceMutedBrush}"
-                                            Text="{x:Bind Summary}" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-                        <TextBox
-                            Grid.Row="2"
-                            AutomationProperties.AutomationId="ReaderPromptBox"
-                            AutomationProperties.Name="读者模式提问"
-                            PlaceholderText="我也想说……" />
-                    </Grid>
-                </Border>
             </Grid>
         </Grid>
 
@@ -473,22 +405,17 @@
             <TextBlock
                 VerticalAlignment="Center"
                 Foreground="{StaticResource VenceMutedBrush}"
-                Text="{x:Bind ViewModel.WordCount}" />
+                Text="{x:Bind ViewModel.WordCount, Mode=OneWay}" />
             <TextBlock
                 Grid.Column="1"
                 VerticalAlignment="Center"
                 Foreground="{StaticResource VenceMutedBrush}"
-                Text="{x:Bind ViewModel.CharacterCount}" />
+                Text="{x:Bind ViewModel.CharacterCount, Mode=OneWay}" />
             <TextBlock
                 Grid.Column="2"
                 VerticalAlignment="Center"
                 Foreground="{StaticResource VenceMutedBrush}"
-                Text="{x:Bind ViewModel.LineCount}" />
-            <TextBlock
-                Grid.Column="4"
-                VerticalAlignment="Center"
-                Foreground="{StaticResource VenceMutedBrush}"
-                Text="主题：晨曦   |   字体大小：A  A  A   |   100%   |   Markdown" />
+                Text="{x:Bind ViewModel.LineCount, Mode=OneWay}" />
         </Grid>
     </Grid>
 </UserControl>
