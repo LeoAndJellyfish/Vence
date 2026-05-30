@@ -60,6 +60,8 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Vence.AI\Vence.AI.csproj" />
+    <ProjectReference Include="..\Vence.Core\Vence.Core.csproj" />
     <ProjectReference Include="..\Vence.EditorHost\Vence.EditorHost.csproj" />
     <ProjectReference Include="..\Vence.Markdown\Vence.Markdown.csproj" />
     <ProjectReference Include="..\Vence.Storage\Vence.Storage.csproj" />

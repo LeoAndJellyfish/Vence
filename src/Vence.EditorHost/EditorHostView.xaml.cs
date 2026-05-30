@@ -71,6 +71,36 @@ public sealed partial class EditorHostView : UserControl
         _bridge.Send(EditorMessage.Create("document.scrollToHeading", new { headingIndex }));
     }
 
+    public void SetSuggestions(object suggestions)
+    {
+        if (!_isReady)
+        {
+            return;
+        }
+
+        _bridge.Send(EditorMessage.Create("suggestions.setSuggestions", new { suggestions }));
+    }
+
+    public void ShowSuggestionsLoading()
+    {
+        if (!_isReady)
+        {
+            return;
+        }
+
+        _bridge.Send(EditorMessage.Create("suggestions.showLoading", new { }));
+    }
+
+    public void ClearSuggestions()
+    {
+        if (!_isReady)
+        {
+            return;
+        }
+
+        _bridge.Send(EditorMessage.Create("suggestions.clear", new { }));
+    }
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         Loaded -= OnLoaded;

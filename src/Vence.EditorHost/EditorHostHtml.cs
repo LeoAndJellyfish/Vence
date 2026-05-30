@@ -178,6 +178,161 @@ internal static class EditorHostHtml
                         max-width: 100%;
                         border-radius: 8px;
                     }
+
+                    .reader-view .suggestion-highlight {
+                        background: #e8f0ec;
+                        border-bottom: 2px solid #355b4b;
+                        cursor: pointer;
+                        border-radius: 2px;
+                    }
+
+                    .reader-view .suggestion-highlight:hover {
+                        background: #d5e4dc;
+                    }
+
+                    .suggestion-bubble {
+                        position: relative;
+                        margin: 4px 0 4px 12px;
+                        padding: 8px 12px;
+                        border: 1px solid #c8d8d0;
+                        border-radius: 8px;
+                        background: #f4f9f6;
+                        font-size: 13px;
+                        line-height: 1.6;
+                        color: #252a26;
+                        cursor: pointer;
+                        transition: all 0.15s ease;
+                    }
+
+                    .suggestion-bubble::before {
+                        content: "";
+                        position: absolute;
+                        left: -6px;
+                        top: 12px;
+                        width: 6px;
+                        height: 6px;
+                        background: #f4f9f6;
+                        border-left: 1px solid #c8d8d0;
+                        border-bottom: 1px solid #c8d8d0;
+                        transform: rotate(45deg);
+                    }
+
+                    .suggestion-bubble:hover {
+                        border-color: #355b4b;
+                        background: #eaf2ed;
+                    }
+
+                    .suggestion-bubble .bubble-header {
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        margin-bottom: 4px;
+                        font-weight: 600;
+                        font-size: 12px;
+                        color: #355b4b;
+                    }
+
+                    .suggestion-bubble .bubble-icon {
+                        font-size: 14px;
+                    }
+
+                    .suggestion-bubble .bubble-summary {
+                        color: #526159;
+                    }
+
+                    .suggestion-bubble .bubble-detail {
+                        display: none;
+                        margin-top: 8px;
+                        padding-top: 8px;
+                        border-top: 1px solid #d5e4dc;
+                    }
+
+                    .suggestion-bubble.expanded .bubble-detail {
+                        display: block;
+                    }
+
+                    .suggestion-bubble .bubble-message {
+                        margin-bottom: 8px;
+                        color: #252a26;
+                    }
+
+                    .suggestion-bubble .bubble-replacement {
+                        margin-bottom: 8px;
+                        padding: 6px 8px;
+                        border-radius: 4px;
+                        background: #eaf2ed;
+                        font-style: italic;
+                        color: #355b4b;
+                    }
+
+                    .suggestion-bubble .bubble-actions {
+                        display: flex;
+                        gap: 8px;
+                    }
+
+                    .suggestion-bubble .bubble-actions button {
+                        padding: 4px 12px;
+                        border: 1px solid #c8d8d0;
+                        border-radius: 4px;
+                        background: #fff;
+                        font-size: 12px;
+                        cursor: pointer;
+                        color: #252a26;
+                    }
+
+                    .suggestion-bubble .bubble-actions button:hover {
+                        background: #eaf2ed;
+                    }
+
+                    .suggestion-bubble .bubble-actions .btn-accept {
+                        background: #355b4b;
+                        color: #fff;
+                        border-color: #355b4b;
+                    }
+
+                    .suggestion-bubble .bubble-actions .btn-accept:hover {
+                        background: #2a4a3c;
+                    }
+
+                    .suggestion-row {
+                        display: flex;
+                        align-items: flex-start;
+                        margin: 0.5em 0;
+                    }
+
+                    .suggestion-row .suggestion-content {
+                        flex: 1;
+                        min-width: 0;
+                    }
+
+                    .suggestion-row .suggestion-bubble {
+                        flex-shrink: 0;
+                        width: 220px;
+                        min-width: 220px;
+                    }
+
+                    .suggestions-loading {
+                        text-align: center;
+                        padding: 24px;
+                        color: #6f746f;
+                        font-size: 14px;
+                    }
+
+                    .suggestions-loading .spinner {
+                        display: inline-block;
+                        width: 20px;
+                        height: 20px;
+                        border: 2px solid #e3dacb;
+                        border-top-color: #355b4b;
+                        border-radius: 50%;
+                        animation: spin 0.8s linear infinite;
+                        vertical-align: middle;
+                        margin-right: 8px;
+                    }
+
+                    @keyframes spin {
+                        to { transform: rotate(360deg); }
+                    }
                 </style>
             </head>
             <body>
@@ -193,6 +348,7 @@ internal static class EditorHostHtml
                     let pendingMermaidBlocks = [];
                     let mermaidModulePromise = null;
                     let mathJaxPromise = null;
+                    let currentSuggestions = [];
 
                     editor.value = initialMarkdown;
                     resizeEditor();
@@ -555,6 +711,201 @@ internal static class EditorHostHtml
                     function renderReader() {
                         reader.innerHTML = renderMarkdown(editor.value);
                         void renderEnhancements();
+                        if (currentSuggestions.length > 0) {
+                            renderSuggestions(currentSuggestions);
+                        }
+                    }
+
+                    const suggestionTypeLabels = {
+                        Grammar: "语法",
+                        Rewrite: "润色",
+                        Reader: "批注",
+                        Format: "格式",
+                        Completion: "续写"
+                    };
+
+                    const suggestionTypeIcons = {
+                        Grammar: "✎",
+                        Rewrite: "✦",
+                        Reader: "💡",
+                        Format: "§",
+                        Completion: "→"
+                    };
+
+                    function renderSuggestions(suggestions) {
+                        currentSuggestions = suggestions;
+                        if (!isReaderMode || suggestions.length === 0) {
+                            return;
+                        }
+
+                        const markdownText = editor.value;
+                        const sorted = [...suggestions].sort((a, b) => a.range.start - b.range.start);
+
+                        for (const suggestion of sorted) {
+                            const elements = findElementsAtRange(markdownText, suggestion.range);
+                            if (elements.length === 0) {
+                                continue;
+                            }
+
+                            const targetElement = elements[0];
+                            const bubble = createSuggestionBubble(suggestion);
+
+                            if (targetElement.tagName === "P" || targetElement.tagName === "LI" || targetElement.tagName === "BLOCKQUOTE") {
+                                wrapWithSuggestionRow(targetElement, bubble);
+                            } else {
+                                targetElement.insertAdjacentElement("afterend", bubble);
+                            }
+                        }
+                    }
+
+                    function findElementsAtRange(markdownText, range) {
+                        const lines = markdownText.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+                        let charOffset = 0;
+                        const targetLines = [];
+
+                        for (let i = 0; i < lines.length; i++) {
+                            const lineEnd = charOffset + lines[i].length;
+                            if (range.start <= lineEnd && range.end >= charOffset) {
+                                targetLines.push(i);
+                            }
+                            charOffset = lineEnd + 1;
+                        }
+
+                        const allBlocks = reader.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table");
+                        const matched = [];
+
+                        for (const block of allBlocks) {
+                            const outlineIndex = block.getAttribute("data-outline-index");
+                            if (outlineIndex !== null) {
+                                const headingLine = findHeadingLineNumber(parseInt(outlineIndex));
+                                if (headingLine !== -1 && targetLines.includes(headingLine)) {
+                                    matched.push(block);
+                                }
+                                continue;
+                            }
+
+                            const blockText = block.textContent || "";
+                            if (blockText.trim().length > 0 && textOverlapsRange(blockText, markdownText, range)) {
+                                matched.push(block);
+                            }
+                        }
+
+                        return matched;
+                    }
+
+                    function findHeadingLineNumber(headingIndex) {
+                        const lines = editor.value.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+                        let currentHeadingIndex = 0;
+                        for (let i = 0; i < lines.length; i++) {
+                            if (/^\s*#{1,6}\s+/.test(lines[i])) {
+                                if (currentHeadingIndex === headingIndex) {
+                                    return i;
+                                }
+                                currentHeadingIndex++;
+                            }
+                        }
+                        return -1;
+                    }
+
+                    function textOverlapsRange(blockText, markdownText, range) {
+                        const searchText = blockText.trim();
+                        if (searchText.length === 0) return false;
+                        const pos = markdownText.indexOf(searchText);
+                        if (pos === -1) return false;
+                        return pos < range.end && (pos + searchText.length) > range.start;
+                    }
+
+                    function wrapWithSuggestionRow(element, bubble) {
+                        if (element.parentElement.classList.contains("suggestion-row")) {
+                            element.parentElement.appendChild(bubble);
+                            return;
+                        }
+
+                        const row = document.createElement("div");
+                        row.className = "suggestion-row";
+                        const content = document.createElement("div");
+                        content.className = "suggestion-content";
+
+                        element.parentNode.insertBefore(row, element);
+                        row.appendChild(content);
+                        content.appendChild(element);
+                        row.appendChild(bubble);
+                    }
+
+                    function createSuggestionBubble(suggestion) {
+                        const bubble = document.createElement("div");
+                        bubble.className = "suggestion-bubble";
+                        bubble.setAttribute("data-suggestion-id", suggestion.id);
+
+                        const typeLabel = suggestionTypeLabels[suggestion.type] || "建议";
+                        const typeIcon = suggestionTypeIcons[suggestion.type] || "●";
+                        const summary = suggestion.message.length > 30
+                            ? suggestion.message.substring(0, 30) + "…"
+                            : suggestion.message;
+
+                        bubble.innerHTML = `
+                            <div class="bubble-header">
+                                <span class="bubble-icon">${typeIcon}</span>
+                                <span>${typeLabel}</span>
+                            </div>
+                            <div class="bubble-summary">${escapeHtml(summary)}</div>
+                            <div class="bubble-detail">
+                                <div class="bubble-message">${escapeHtml(suggestion.message)}</div>
+                                ${suggestion.replacement ? `<div class="bubble-replacement">${escapeHtml(suggestion.replacement)}</div>` : ""}
+                                <div class="bubble-actions">
+                                    <button class="btn-accept" data-action="accept">接受</button>
+                                    <button class="btn-reject" data-action="reject">忽略</button>
+                                </div>
+                            </div>
+                        `;
+
+                        bubble.addEventListener("click", (e) => {
+                            if (e.target.tagName === "BUTTON") return;
+                            bubble.classList.toggle("expanded");
+                        });
+
+                        bubble.querySelector(".btn-accept").addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            post("suggestion.accept", { id: suggestion.id });
+                            bubble.remove();
+                        });
+
+                        bubble.querySelector(".btn-reject").addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            post("suggestion.reject", { id: suggestion.id });
+                            bubble.remove();
+                        });
+
+                        return bubble;
+                    }
+
+                    function showSuggestionsLoading() {
+                        if (!isReaderMode) return;
+                        const existing = reader.querySelector(".suggestions-loading");
+                        if (existing) return;
+                        const loader = document.createElement("div");
+                        loader.className = "suggestions-loading";
+                        loader.innerHTML = '<span class="spinner"></span>AI 正在阅读…';
+                        reader.insertAdjacentElement("afterbegin", loader);
+                    }
+
+                    function hideSuggestionsLoading() {
+                        const loader = reader.querySelector(".suggestions-loading");
+                        if (loader) loader.remove();
+                    }
+
+                    function clearSuggestions() {
+                        currentSuggestions = [];
+                        reader.querySelectorAll(".suggestion-bubble").forEach(b => b.remove());
+                        reader.querySelectorAll(".suggestion-row").forEach(row => {
+                            const content = row.querySelector(".suggestion-content");
+                            if (content) {
+                                while (content.firstChild) {
+                                    row.parentNode.insertBefore(content.firstChild, row);
+                                }
+                            }
+                            row.remove();
+                        });
                     }
 
                     function findHeadingOffset(headingIndex) {
@@ -749,6 +1100,23 @@ internal static class EditorHostHtml
 
                         if (message.type === "editor.applyMarkdownCommand") {
                             applyMarkdownCommand(message.payload.command);
+                        }
+
+                        if (message.type === "suggestions.setSuggestions") {
+                            const suggestions = message.payload.suggestions;
+                            if (Array.isArray(suggestions)) {
+                                hideSuggestionsLoading();
+                                renderSuggestions(suggestions);
+                            }
+                        }
+
+                        if (message.type === "suggestions.showLoading") {
+                            showSuggestionsLoading();
+                        }
+
+                        if (message.type === "suggestions.clear") {
+                            hideSuggestionsLoading();
+                            clearSuggestions();
                         }
                     });
 

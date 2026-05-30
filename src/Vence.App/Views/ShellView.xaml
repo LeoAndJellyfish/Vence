@@ -26,6 +26,15 @@
             <Setter Property="BorderBrush" Value="{StaticResource VenceLineBrush}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
+        <Style x:Key="HeaderIconButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{StaticResource VenceLineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
     </UserControl.Resources>
 
     <Grid Background="{StaticResource VenceSurfaceBrush}">
@@ -45,6 +54,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="220" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
@@ -89,34 +99,52 @@
             </StackPanel>
 
             <CommandBar
-                Grid.Column="2"
-                Background="Transparent"
-                DefaultLabelPosition="Right"
-                IsOpen="False">
-                <AppBarButton
-                    x:Name="NewDocumentButton"
-                    AutomationProperties.AutomationId="NewDocumentButton"
-                    AutomationProperties.Name="新建文档"
-                    Click="OnNewDocumentClick"
-                    Icon="Page2"
-                    IsEnabled="{x:Bind ViewModel.HasWorkspace, Mode=OneWay}"
-                    Label="新建" />
-                <AppBarButton
-                    x:Name="OpenDocumentButton"
-                    AutomationProperties.AutomationId="OpenDocumentButton"
-                    AutomationProperties.Name="打开工作区"
-                    Click="OnOpenWorkspaceClick"
-                    Icon="OpenFile"
-                    Label="打开" />
-                <AppBarButton
-                    x:Name="SaveDocumentButton"
-                    AutomationProperties.AutomationId="SaveDocumentButton"
-                    AutomationProperties.Name="保存文档"
-                    Click="OnSaveDocumentClick"
-                    Icon="Save"
-                    IsEnabled="{x:Bind ViewModel.CanSave, Mode=OneWay}"
-                    Label="保存" />
-            </CommandBar>
+                    Grid.Column="2"
+                    Background="Transparent"
+                    DefaultLabelPosition="Right"
+                    IsOpen="False">
+                    <AppBarButton
+                        x:Name="NewDocumentButton"
+                        AutomationProperties.AutomationId="NewDocumentButton"
+                        AutomationProperties.Name="新建文档"
+                        Click="OnNewDocumentClick"
+                        Icon="Page2"
+                        IsEnabled="{x:Bind ViewModel.HasWorkspace, Mode=OneWay}"
+                        Label="新建" />
+                    <AppBarButton
+                        x:Name="OpenDocumentButton"
+                        AutomationProperties.AutomationId="OpenDocumentButton"
+                        AutomationProperties.Name="打开工作区"
+                        Click="OnOpenWorkspaceClick"
+                        Icon="OpenFile"
+                        Label="打开" />
+                    <AppBarButton
+                        x:Name="SaveDocumentButton"
+                        AutomationProperties.AutomationId="SaveDocumentButton"
+                        AutomationProperties.Name="保存文档"
+                        Click="OnSaveDocumentClick"
+                        Icon="Save"
+                        IsEnabled="{x:Bind ViewModel.CanSave, Mode=OneWay}"
+                        Label="保存" />
+                </CommandBar>
+
+            <Button
+                x:Name="SettingsButton"
+                Grid.Column="3"
+                Margin="0,0,2,0"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                AutomationProperties.AutomationId="SettingsButton"
+                AutomationProperties.Name="设置"
+                Click="OnSettingsClick"
+                Style="{StaticResource HeaderIconButtonStyle}"
+                ToolTipService.ToolTip="设置">
+                <FontIcon
+                    FontFamily="Segoe Fluent Icons"
+                    FontSize="15"
+                    Foreground="{StaticResource VenceAccentBrush}"
+                    Glyph="&#xE713;" />
+            </Button>
         </Grid>
 
         <Grid Grid.Row="1">

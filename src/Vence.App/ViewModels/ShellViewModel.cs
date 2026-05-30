@@ -2,7 +2,11 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
+using Vence.AI;
+using Vence.AI.Prompts;
 using Vence.App.Models;
+using Vence.Core.Documents;
+using Vence.Core.Suggestions;
 using Vence.Markdown;
 using Vence.Storage;
 
@@ -25,8 +29,10 @@ public sealed class ShellViewModel : INotifyPropertyChanged
 
     private readonly MarkdownParser _markdownParser = new();
     private readonly OutlineBuilder _outlineBuilder = new();
+    private readonly List<Suggestion> _activeSuggestions = [];
 
     private IWorkspaceStore? _workspaceStore;
+    private IAssistantService? _assistantService;
     private StoredDocument? _currentDocument;
     private string? _workspacePath;
     private string _currentMarkdown = DefaultMarkdown;
@@ -54,7 +60,18 @@ public sealed class ShellViewModel : INotifyPropertyChanged
         RefreshDocumentStats();
     }
 
+    public ShellViewModel(IAssistantService assistantService) : this()
+    {
+        _assistantService = assistantService;
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public event EventHandler<SuggestionsReadyEventArgs>? SuggestionsReady;
+
+    public event EventHandler? SuggestionsLoadingRequested;
+
+    public event EventHandler? SuggestionsClearRequested;
 
     public ObservableCollection<DocumentListItem> Documents { get; }
 
@@ -270,14 +287,17 @@ public sealed class ShellViewModel : INotifyPropertyChanged
     {
         IsReaderMode = isReaderMode;
         ReaderNotes.Clear();
+        _activeSuggestions.Clear();
 
         if (isReaderMode)
         {
             ReaderNotes.Add(new AssistantPanelItem(
                 "ReadingMode",
                 "阅读视图已启用",
-                "Markdown 已渲染为最终阅读效果。选中任意段落后，可调用左右两侧 AI 辅助。"));
+                "AI 正在阅读全文，稍后将在右侧显示批注建议。"));
             UpdateReaderSelection(string.Empty);
+            SuggestionsLoadingRequested?.Invoke(this, EventArgs.Empty);
+            _ = ScanForSuggestionsAsync();
             return;
         }
 
@@ -286,6 +306,79 @@ public sealed class ShellViewModel : INotifyPropertyChanged
             "编辑模式",
             "返回 Markdown 源文编辑。"));
         UpdateReaderSelection(string.Empty);
+        SuggestionsClearRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async Task ScanForSuggestionsAsync()
+    {
+        if (_assistantService is null || string.IsNullOrWhiteSpace(CurrentMarkdown))
+        {
+            return;
+        }
+
+        try
+        {
+            var document = new Document(Guid.NewGuid(), "reader.md", CurrentMarkdown);
+            var request = new AssistantRequest(document, AssistantMode.ReaderMode);
+            var result = await _assistantService.GetSuggestionsAsync(request);
+
+            if (!result.Succeeded || result.Suggestions.Count == 0)
+            {
+                return;
+            }
+
+            _activeSuggestions.Clear();
+            _activeSuggestions.AddRange(result.Suggestions);
+
+            var suggestionData = result.Suggestions.Select(s => new
+            {
+                id = s.Id.ToString(),
+                type = s.Type.ToString(),
+                message = s.Message,
+                replacement = s.Replacement,
+                range = new { start = s.Range.Start, end = s.Range.End }
+            }).ToList();
+
+            SuggestionsReady?.Invoke(this, new SuggestionsReadyEventArgs(suggestionData));
+        }
+        catch
+        {
+            ReaderNotes.Insert(0, new AssistantPanelItem(
+                "Warning",
+                "AI 阅读失败",
+                "无法获取 AI 建议，请检查 AI 配置。"));
+        }
+    }
+
+    public void AcceptSuggestion(string suggestionId)
+    {
+        var suggestion = _activeSuggestions.FirstOrDefault(s => s.Id.ToString() == suggestionId);
+        if (suggestion is null || suggestion.Replacement is null)
+        {
+            return;
+        }
+
+        var markdown = CurrentMarkdown;
+        if (suggestion.Range.Start >= 0 && suggestion.Range.End <= markdown.Length && suggestion.Range.Start < suggestion.Range.End)
+        {
+            var newMarkdown = markdown[..suggestion.Range.Start] + suggestion.Replacement + markdown[suggestion.Range.End..];
+            CurrentMarkdown = newMarkdown;
+            IsDirty = _currentDocument is not null;
+            suggestion.Accept();
+            _activeSuggestions.Remove(suggestion);
+        }
+    }
+
+    public void RejectSuggestion(string suggestionId)
+    {
+        var suggestion = _activeSuggestions.FirstOrDefault(s => s.Id.ToString() == suggestionId);
+        if (suggestion is null)
+        {
+            return;
+        }
+
+        suggestion.Reject();
+        _activeSuggestions.Remove(suggestion);
     }
 
     public void UpdateReaderSelection(string selectedText)
@@ -627,5 +720,15 @@ public sealed class ShellViewModel : INotifyPropertyChanged
         public SortedDictionary<string, DocumentTreeNode> Folders { get; }
 
         public SortedDictionary<string, WorkspaceDocumentInfo> Files { get; }
+    }
+}
+
+public sealed class SuggestionsReadyEventArgs : EventArgs
+{
+    public object SuggestionData { get; }
+
+    public SuggestionsReadyEventArgs(object suggestionData)
+    {
+        SuggestionData = suggestionData;
     }
 }

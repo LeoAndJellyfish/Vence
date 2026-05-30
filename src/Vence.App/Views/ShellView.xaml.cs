@@ -1,6 +1,8 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Vence.AI;
 using Vence.App.Models;
+using Vence.App.Services;
 using Vence.App.ViewModels;
 using Vence.EditorHost;
 using Windows.Storage.Pickers;
@@ -10,9 +12,17 @@ namespace Vence.App.Views;
 
 public sealed partial class ShellView : UserControl
 {
+    private readonly ISettingsService _settingsService;
+    private readonly ProviderChatClientFactory _chatClientFactory;
+
     public ShellView()
     {
-        ViewModel = new ShellViewModel();
+        _settingsService = new JsonSettingsService();
+        var config = _settingsService.LoadProviderConfig();
+        _chatClientFactory = new ProviderChatClientFactory(config);
+
+        var assistantService = new AssistantService(_chatClientFactory);
+        ViewModel = new ShellViewModel(assistantService);
         InitializeComponent();
         Loaded += OnLoaded;
     }
@@ -23,6 +33,9 @@ public sealed partial class ShellView : UserControl
     {
         Loaded -= OnLoaded;
         MarkdownEditorHost.EditorMessageReceived += OnEditorMessageReceived;
+        ViewModel.SuggestionsReady += OnSuggestionsReady;
+        ViewModel.SuggestionsLoadingRequested += OnSuggestionsLoadingRequested;
+        ViewModel.SuggestionsClearRequested += OnSuggestionsClearRequested;
         SyncSelection();
     }
 
@@ -150,6 +163,26 @@ public sealed partial class ShellView : UserControl
         {
             UpdateReaderSelection(message);
         }
+
+        if (message.Type.Equals("suggestion.accept", StringComparison.Ordinal))
+        {
+            if (message.Payload.TryGetProperty("id", out var idProperty))
+            {
+                var suggestionId = idProperty.GetString() ?? string.Empty;
+                ViewModel.AcceptSuggestion(suggestionId);
+                MarkdownEditorHost.SetMarkdown(ViewModel.CurrentMarkdown);
+                MarkdownEditorHost.SetReaderMode(true);
+            }
+        }
+
+        if (message.Type.Equals("suggestion.reject", StringComparison.Ordinal))
+        {
+            if (message.Payload.TryGetProperty("id", out var idProperty))
+            {
+                var suggestionId = idProperty.GetString() ?? string.Empty;
+                ViewModel.RejectSuggestion(suggestionId);
+            }
+        }
     }
 
     private void UpdateCurrentMarkdownFromEditor(EditorMessage message)
@@ -224,5 +257,38 @@ public sealed partial class ShellView : UserControl
         };
 
         await dialog.ShowAsync();
+    }
+
+    private void OnSuggestionsReady(object? sender, SuggestionsReadyEventArgs e)
+    {
+        MarkdownEditorHost.SetSuggestions(e.SuggestionData);
+    }
+
+    private void OnSuggestionsLoadingRequested(object? sender, EventArgs e)
+    {
+        MarkdownEditorHost.ShowSuggestionsLoading();
+    }
+
+    private void OnSuggestionsClearRequested(object? sender, EventArgs e)
+    {
+        MarkdownEditorHost.ClearSuggestions();
+    }
+
+    private async void OnSettingsClick(object sender, RoutedEventArgs e)
+    {
+        var currentConfig = _chatClientFactory.CurrentConfig;
+        var dialog = new SettingsDialog(currentConfig)
+        {
+            XamlRoot = XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+
+        if (result == ContentDialogResult.Primary)
+        {
+            var newConfig = dialog.ResultConfig;
+            _chatClientFactory.UpdateConfig(newConfig);
+            _settingsService.SaveProviderConfig(newConfig);
+        }
     }
 }
