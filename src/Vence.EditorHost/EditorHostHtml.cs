@@ -435,21 +435,32 @@ internal static class EditorHostHtml
                     }
 
                     function loadMermaid() {
+                        if (window.mermaid) {
+                            return Promise.resolve(window.mermaid);
+                        }
+
                         if (mermaidModulePromise) {
                             return mermaidModulePromise;
                         }
 
-                        mermaidModulePromise = import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")
-                            .then(module => {
-                                const mermaid = module.default;
-                                mermaid.initialize({
-                                    startOnLoad: false,
-                                    securityLevel: "strict",
-                                    theme: "neutral"
-                                });
-                                return mermaid;
-                            })
-                            .catch(() => null);
+                        mermaidModulePromise = new Promise(resolve => {
+                            const script = document.createElement("script");
+                            script.src = "https://vence.local/mermaid.min.js";
+                            script.async = true;
+                            script.onload = () => {
+                                const mermaid = window.mermaid;
+                                if (mermaid) {
+                                    mermaid.initialize({
+                                        startOnLoad: false,
+                                        securityLevel: "strict",
+                                        theme: "neutral"
+                                    });
+                                }
+                                resolve(mermaid ?? null);
+                            };
+                            script.onerror = () => resolve(null);
+                            document.head.appendChild(script);
+                        });
 
                         return mermaidModulePromise;
                     }
@@ -479,7 +490,7 @@ internal static class EditorHostHtml
 
                         mathJaxPromise = new Promise(resolve => {
                             const script = document.createElement("script");
-                            script.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js";
+                            script.src = "https://vence.local/tex-svg-full.js";
                             script.async = true;
                             script.onload = () => resolve(window.MathJax ?? null);
                             script.onerror = () => resolve(null);

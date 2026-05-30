@@ -1,12 +1,18 @@
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.Web.WebView2.Core;
 
 namespace Vence.EditorHost;
 
 public sealed class EditorBridge
 {
+    private const string VirtualHostName = "vence.local";
+    private const string ScriptsFolderName = "Scripts";
+
     private WebView2? _webView;
 
     public event EventHandler<EditorMessage>? MessageReceived;
+
+    public static string ScriptsOrigin => $"https://{VirtualHostName}";
 
     public async Task AttachAsync(WebView2 webView, CancellationToken cancellationToken = default)
     {
@@ -14,6 +20,12 @@ public sealed class EditorBridge
         await _webView.EnsureCoreWebView2Async();
 
         cancellationToken.ThrowIfCancellationRequested();
+
+        var scriptsPath = Path.Combine(AppContext.BaseDirectory, ScriptsFolderName);
+        _webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+            VirtualHostName,
+            scriptsPath,
+            CoreWebView2HostResourceAccessKind.Allow);
 
         _webView.CoreWebView2.WebMessageReceived += (_, args) =>
         {
