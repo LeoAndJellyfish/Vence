@@ -1,5 +1,6 @@
-/设计稿
 .dotnet/
 bin/
 obj/
 artifacts/
+*.pfx
+*.p12

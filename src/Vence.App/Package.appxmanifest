@@ -8,15 +8,15 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="4C5D4F6F-CA3B-4353-9DDD-97B8CF88B767"
-    Publisher="CN=AppPublisher"
+    Name="Vence.App"
+    Publisher="CN=Vence Development"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="4C5D4F6F-CA3B-4353-9DDD-97B8CF88B767" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>Vence 文思</DisplayName>
-    <PublisherDisplayName>AppPublisher</PublisherDisplayName>
+    <PublisherDisplayName>Vence</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 

@@ -11,23 +11,21 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+. (Join-Path $PSScriptRoot "common.ps1")
+
+$repoRoot = Get-VenceRepoRoot
 $projectPath = Join-Path $repoRoot "src\Vence.App\Vence.App.csproj"
 
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-    $OutputDirectory = Join-Path $repoRoot "artifacts\publish\Vence.App\$Configuration\$Platform"
+    $OutputDirectory = Join-Path $repoRoot "artifacts\publish\Vence.App\$Configuration\$Platform-selfcontained"
 }
-elseif (-not [System.IO.Path]::IsPathRooted($OutputDirectory)) {
-    $OutputDirectory = Join-Path $repoRoot $OutputDirectory
+else {
+    $OutputDirectory = Resolve-VencePath -RepoRoot $repoRoot -Path $OutputDirectory
 }
 
-$OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
+$runtimeIdentifier = Get-VenceRuntimeIdentifier -Platform $Platform
 
-$runtimeIdentifier = "win-$($Platform.ToLowerInvariant())"
-
-$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
-$env:DOTNET_CLI_TELEMETRY_OPTOUT = "1"
-$env:DOTNET_CLI_HOME = Join-Path $repoRoot ".dotnet"
+Initialize-VenceDotNetEnvironment -RepoRoot $repoRoot
 
 Write-Host "Restoring Vence.App..."
 dotnet restore $projectPath `
@@ -44,6 +42,8 @@ dotnet publish $projectPath `
     --no-restore `
     -c $Configuration `
     -p:Platform=$Platform `
+    -p:WindowsPackageType=None `
+    -p:AppxPackage=false `
     -r $runtimeIdentifier `
     --self-contained true `
     -o $OutputDirectory
